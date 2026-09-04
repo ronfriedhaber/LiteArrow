@@ -3,7 +3,7 @@ use std::sync::Arc;
 use arrow_array::{Array, ArrayRef, BooleanArray};
 use arrow_buffer::{BooleanBuffer, Buffer};
 use arrow_schema::{DataType, Field};
-use litearrow_compression::rle;
+use litearrow_compression::{bca, rle};
 
 use crate::codec::{ColumnCodec, validity};
 use crate::{Error, Result};
@@ -23,12 +23,17 @@ impl ColumnCodec for Boolean {
         (0..array.len())
             .filter(|&i| array.is_valid(i) && array.value(i))
             .for_each(|i| packed[i / 8] |= 1 << (i % 8));
-        let encoded = rle::encode(&packed, array.len());
-        let (mode, values) = if encoded.len() < packed.len() {
-            (1, encoded)
-        } else {
-            (0, packed)
-        };
+        let candidates = [
+            (1, rle::encode(&packed, array.len())),
+            (2, bca::encode(&packed, array.len())),
+        ];
+        let (mode, values) = candidates.into_iter().fold((0, packed), |best, candidate| {
+            if candidate.1.len() < best.1.len() {
+                candidate
+            } else {
+                best
+            }
+        });
         let mut out = vec![mode];
         validity::encode(array, &mut out);
         out.extend(values);
@@ -48,6 +53,7 @@ impl ColumnCodec for Boolean {
             0 if bytes.len() - at == length.div_ceil(8) => bytes[at..].to_vec(),
             0 => return Err(Error::InvalidMetadata("invalid boolean bitmap length")),
             1 => rle::decode(&bytes[at..], length)?,
+            2 => bca::decode(&bytes[at..], length)?,
             _ => return Err(Error::InvalidMetadata("invalid boolean encoding")),
         };
         Ok(Arc::new(BooleanArray::new(

@@ -1,5 +1,6 @@
 //! Integer compression used by LiteArrow codecs.
 
+pub mod bca;
 mod delta_bitpacked;
 mod delta_of_delta;
 mod frame_of_reference;
@@ -180,5 +181,28 @@ mod tests {
             .collect();
         let (encoding, _) = encode(&values).unwrap();
         assert!(matches!(encoding, Encoding::DeltaOfDelta { .. }));
+    }
+
+    #[test]
+    fn bca_round_trips_literals_patterns_and_tails() {
+        [
+            (0..10).map(|i| i % 2 == 0).collect::<Vec<_>>(),
+            (0..237).map(|i| [true, false, true][i % 3]).collect(),
+            (0..101).map(|_| true).collect(),
+        ]
+        .into_iter()
+        .for_each(|values| {
+            let mut bits = vec![0; values.len().div_ceil(8)];
+            values
+                .iter()
+                .enumerate()
+                .filter(|(_, value)| **value)
+                .for_each(|(i, _)| bits[i / 8] |= 1 << (i % 8));
+            let encoded = bca::encode(&bits, values.len());
+            assert_eq!(bca::decode(&encoded, values.len()).unwrap(), bits);
+            if values.len() == 237 {
+                assert!(encoded.len() < bits.len());
+            }
+        });
     }
 }
