@@ -379,6 +379,7 @@ version = "0.1.0"
 dependencies = [
  "arrow-array",
  "arrow-schema",
+ "half",
  "litearrow-core",
  "litearrow-reader",
  "litearrow-writer",
@@ -407,6 +408,7 @@ version = "0.1.0"
 dependencies = [
  "arrow-array",
  "arrow-buffer",
+ "arrow-data",
  "arrow-ipc",
  "arrow-schema",
  "litearrow-compression",

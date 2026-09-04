@@ -11,3 +11,4 @@ litearrow-writer = { path = "../litearrow-writer" }
 [dev-dependencies]
 arrow-array.workspace = true
 arrow-schema.workspace = true
+half.workspace = true

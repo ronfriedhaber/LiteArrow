@@ -1,5 +1,9 @@
-mod int64;
+mod boolean;
+mod float;
+mod integer;
 mod ipc;
+mod string;
+mod validity;
 
 use arrow_array::{Array, ArrayRef};
 use arrow_schema::Field;
@@ -13,11 +17,14 @@ pub trait ColumnCodec: Send + Sync {
     fn decode(&self, field: &Field, length: usize, bytes: &[u8]) -> Result<ArrayRef>;
 }
 
-static INT64: int64::Int64 = int64::Int64;
+static BOOLEAN: boolean::Boolean = boolean::Boolean;
+static FLOAT: float::Float = float::Float;
+static INTEGER: integer::Integer = integer::Integer;
 static IPC: ipc::Ipc = ipc::Ipc;
+static STRING: string::String = string::String;
 
-pub fn specialized() -> [&'static dyn ColumnCodec; 1] {
-    [&INT64]
+pub fn specialized() -> [&'static dyn ColumnCodec; 4] {
+    [&INTEGER, &FLOAT, &BOOLEAN, &STRING]
 }
 
 pub fn fallback() -> &'static dyn ColumnCodec {

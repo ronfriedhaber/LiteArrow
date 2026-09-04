@@ -4,6 +4,8 @@ mod delta_bitpacked;
 mod delta_of_delta;
 mod frame_of_reference;
 mod raw;
+pub mod rle;
+pub mod xor;
 
 use std::fmt;
 

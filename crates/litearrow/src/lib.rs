@@ -11,7 +11,7 @@
 //! ```
 //!
 //! All Arrow IPC types round-trip through [`FileWriter`] and [`FileReader`];
-//! `Int64` additionally receives adaptive native compression.
+//! integers, floats, Booleans, and strings receive adaptive native compression.
 
 pub use litearrow_core::{ColumnCodec, Error, Result};
 pub use litearrow_reader::FileReader;
