@@ -1,0 +1,23 @@
+[package]
+name = "litearrow"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+arrow-array = "59.3.0"
+arrow-ipc = "59.3.0"
+arrow-schema = "59.3.0"
+bytes = { version = "1.12.1", optional = true }
+parquet = { version = "59.3.0", default-features = false, features = ["arrow", "zstd"], optional = true }
+
+[features]
+bench = ["dep:bytes", "dep:parquet"]
+
+[[bin]]
+name = "litearrow-bench"
+path = "src/bin/benchmark.rs"
+required-features = ["bench"]
+
+[[example]]
+name = "compare_parquet"
+required-features = ["bench"]
