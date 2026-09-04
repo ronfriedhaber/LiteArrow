@@ -4,30 +4,30 @@ use std::io::{Cursor, Read};
 
 use crate::{Error, Result, crc32c};
 
-pub(crate) const HEADER: [u8; 8] = *b"LTAR\x01\0\0\0";
-pub(crate) const TRAILER_LENGTH: u64 = 16;
+pub const HEADER: [u8; 8] = *b"LTAR\x01\0\0\0";
+pub const TRAILER_LENGTH: u64 = 16;
 const MAGIC: [u8; 4] = *b"LTAR";
 
-pub(crate) struct Metadata {
+pub struct Metadata {
     pub schema: Vec<u8>,
     pub field_count: u32,
     pub blocks: Vec<Block>,
 }
 
 #[derive(Clone)]
-pub(crate) struct Block {
+pub struct Block {
     pub rows: u32,
     pub columns: Vec<Chunk>,
 }
 
 #[derive(Clone, Copy)]
-pub(crate) struct Chunk {
+pub struct Chunk {
     pub codec: u8,
     pub offset: u64,
     pub length: u64,
 }
 
-pub(crate) fn encode(metadata: &Metadata) -> Result<Vec<u8>> {
+pub fn encode(metadata: &Metadata) -> Result<Vec<u8>> {
     let mut out = Vec::new();
     u32(&mut out, length(metadata.schema.len())?);
     out.extend(&metadata.schema);
@@ -44,7 +44,7 @@ pub(crate) fn encode(metadata: &Metadata) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-pub(crate) fn decode(bytes: &[u8]) -> Result<Metadata> {
+pub fn decode(bytes: &[u8]) -> Result<Metadata> {
     let mut input = Cursor::new(bytes);
     let schema_length = read_u32(&mut input)? as usize;
     let mut schema = vec![0; schema_length];
@@ -76,7 +76,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Metadata> {
     })
 }
 
-pub(crate) fn trailer(footer: &[u8]) -> [u8; 16] {
+pub fn trailer(footer: &[u8]) -> [u8; 16] {
     let mut out = [0; 16];
     out[..8].copy_from_slice(&(footer.len() as u64).to_le_bytes());
     out[8..12].copy_from_slice(&crc32c(footer).to_le_bytes());
@@ -84,7 +84,7 @@ pub(crate) fn trailer(footer: &[u8]) -> [u8; 16] {
     out
 }
 
-pub(crate) fn read_trailer(bytes: [u8; 16]) -> Result<(u64, u32)> {
+pub fn read_trailer(bytes: [u8; 16]) -> Result<(u64, u32)> {
     if bytes[12..] != MAGIC {
         return Err(Error::InvalidMagic {
             structure: "trailer",

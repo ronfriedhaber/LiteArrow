@@ -13,18 +13,6 @@
 //! All Arrow IPC types round-trip through [`FileWriter`] and [`FileReader`];
 //! `Int64` additionally receives adaptive native compression.
 
-mod checksum;
-mod codec;
-mod compression;
-mod error;
-mod format;
-mod reader;
-mod writer;
-
-pub use codec::ColumnCodec;
-pub use error::{Error, Result};
-pub use reader::FileReader;
-pub use writer::FileWriter;
-
-pub(crate) use checksum::crc32c;
-pub(crate) use compression::Encoding;
+pub use litearrow_core::{ColumnCodec, Error, Result};
+pub use litearrow_reader::FileReader;
+pub use litearrow_writer::FileWriter;

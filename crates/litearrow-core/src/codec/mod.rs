@@ -16,19 +16,19 @@ pub trait ColumnCodec: Send + Sync {
 static INT64: int64::Int64 = int64::Int64;
 static IPC: ipc::Ipc = ipc::Ipc;
 
-pub(crate) fn specialized() -> [&'static dyn ColumnCodec; 1] {
+pub fn specialized() -> [&'static dyn ColumnCodec; 1] {
     [&INT64]
 }
 
-pub(crate) fn fallback() -> &'static dyn ColumnCodec {
+pub fn fallback() -> &'static dyn ColumnCodec {
     &IPC
 }
 
-pub(crate) fn get(id: u8) -> Option<&'static dyn ColumnCodec> {
+pub fn get(id: u8) -> Option<&'static dyn ColumnCodec> {
     specialized()
         .into_iter()
         .chain([fallback()])
         .find(|codec| codec.id() == id)
 }
 
-pub(crate) use ipc::{decode_schema, encode_schema};
+pub use ipc::{decode_schema, encode_schema};

@@ -1,0 +1,12 @@
+[package]
+name = "litearrow-bench"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+arrow-array.workspace = true
+arrow-schema.workspace = true
+bytes.workspace = true
+litearrow = { path = "../litearrow" }
+parquet.workspace = true

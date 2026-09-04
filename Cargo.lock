@@ -347,10 +347,48 @@ name = "litearrow"
 version = "0.1.0"
 dependencies = [
  "arrow-array",
- "arrow-ipc",
+ "arrow-schema",
+ "litearrow-core",
+ "litearrow-reader",
+ "litearrow-writer",
+]
+
+[[package]]
+name = "litearrow-bench"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
  "arrow-schema",
  "bytes",
+ "litearrow",
  "parquet",
+]
+
+[[package]]
+name = "litearrow-core"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-ipc",
+ "arrow-schema",
+]
+
+[[package]]
+name = "litearrow-reader"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-schema",
+ "litearrow-core",
+]
+
+[[package]]
+name = "litearrow-writer"
+version = "0.1.0"
+dependencies = [
+ "arrow-array",
+ "arrow-schema",
+ "litearrow-core",
 ]
 
 [[package]]

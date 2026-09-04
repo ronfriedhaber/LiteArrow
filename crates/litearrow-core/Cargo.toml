@@ -1,0 +1,9 @@
+[package]
+name = "litearrow-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+arrow-array.workspace = true
+arrow-ipc.workspace = true
+arrow-schema.workspace = true

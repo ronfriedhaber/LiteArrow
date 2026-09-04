@@ -3,9 +3,8 @@ use std::io::{Read, Seek, SeekFrom};
 use arrow_array::RecordBatch;
 use arrow_schema::SchemaRef;
 
-use crate::codec;
-use crate::format::{self, HEADER, Metadata, TRAILER_LENGTH};
-use crate::{Error, Result, crc32c};
+use litearrow_core::format::{self, HEADER, Metadata, TRAILER_LENGTH};
+use litearrow_core::{Error, Result, codec, crc32c};
 
 pub struct FileReader<R> {
     input: R,

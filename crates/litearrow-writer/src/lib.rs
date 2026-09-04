@@ -3,9 +3,8 @@ use std::io::Write;
 use arrow_array::RecordBatch;
 use arrow_schema::SchemaRef;
 
-use crate::codec;
-use crate::format::{self, Block, Chunk, HEADER, Metadata};
-use crate::{Error, Result};
+use litearrow_core::format::{self, Block, Chunk, HEADER, Metadata};
+use litearrow_core::{Error, Result, codec};
 
 pub struct FileWriter<W> {
     output: W,

@@ -1,0 +1,13 @@
+[package]
+name = "litearrow"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+litearrow-core = { path = "../litearrow-core" }
+litearrow-reader = { path = "../litearrow-reader" }
+litearrow-writer = { path = "../litearrow-writer" }
+
+[dev-dependencies]
+arrow-array.workspace = true
+arrow-schema.workspace = true

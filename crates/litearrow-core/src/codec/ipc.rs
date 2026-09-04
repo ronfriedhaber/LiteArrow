@@ -36,7 +36,7 @@ impl ColumnCodec for Ipc {
     }
 }
 
-pub(crate) fn encode_schema(schema: &SchemaRef) -> Result<Vec<u8>> {
+pub fn encode_schema(schema: &SchemaRef) -> Result<Vec<u8>> {
     let mut bytes = Vec::new();
     let mut writer = StreamWriter::try_new(&mut bytes, schema)?;
     writer.finish()?;
@@ -44,6 +44,6 @@ pub(crate) fn encode_schema(schema: &SchemaRef) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 
-pub(crate) fn decode_schema(bytes: &[u8]) -> Result<SchemaRef> {
+pub fn decode_schema(bytes: &[u8]) -> Result<SchemaRef> {
     Ok(StreamReader::try_new(Cursor::new(bytes), None)?.schema())
 }
