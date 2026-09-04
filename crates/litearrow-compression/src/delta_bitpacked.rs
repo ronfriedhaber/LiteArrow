@@ -39,7 +39,7 @@ pub(super) fn decode(
         .map(|encoded| {
             previous = previous
                 .checked_add(unzigzag(encoded))
-                .ok_or(Error::InvalidMetadata("delta value overflow"))?;
+                .ok_or(Error("delta value overflow"))?;
             Ok(previous)
         })
         .collect::<Result<Vec<_>>>()?;

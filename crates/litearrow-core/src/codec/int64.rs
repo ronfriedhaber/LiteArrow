@@ -4,7 +4,9 @@ use arrow_array::{Array, ArrayRef, Int64Array};
 use arrow_schema::{DataType, Field};
 
 use crate::codec::ColumnCodec;
-use crate::{Encoding, Error, Result, compression};
+use litearrow_compression::{self as compression, Encoding};
+
+use crate::{Error, Result};
 
 pub(super) struct Int64;
 

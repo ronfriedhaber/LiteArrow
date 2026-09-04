@@ -33,3 +33,9 @@ impl From<arrow_schema::ArrowError> for Error {
         Self::Arrow(error.to_string())
     }
 }
+
+impl From<litearrow_compression::Error> for Error {
+    fn from(error: litearrow_compression::Error) -> Self {
+        Self::InvalidMetadata(error.0)
+    }
+}

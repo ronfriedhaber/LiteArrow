@@ -7,3 +7,4 @@ edition.workspace = true
 arrow-array.workspace = true
 arrow-ipc.workspace = true
 arrow-schema.workspace = true
+litearrow-compression = { path = "../litearrow-compression" }

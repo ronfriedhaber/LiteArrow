@@ -45,7 +45,7 @@ pub(super) fn decode(
     }
     let value = first_value
         .checked_add(first_delta)
-        .ok_or(Error::InvalidMetadata("delta-of-delta value overflow"))?;
+        .ok_or(Error("delta-of-delta value overflow"))?;
     values.push(value);
     let mut delta = first_delta;
     let mut value = value;
@@ -54,10 +54,10 @@ pub(super) fn decode(
         .map(|encoded| {
             delta = delta
                 .checked_add(unzigzag(encoded))
-                .ok_or(Error::InvalidMetadata("delta-of-delta overflow"))?;
+                .ok_or(Error("delta-of-delta overflow"))?;
             value = value
                 .checked_add(delta)
-                .ok_or(Error::InvalidMetadata("delta-of-delta value overflow"))?;
+                .ok_or(Error("delta-of-delta value overflow"))?;
             Ok(value)
         })
         .collect::<Result<Vec<_>>>()?;

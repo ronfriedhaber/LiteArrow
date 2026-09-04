@@ -27,7 +27,7 @@ pub(super) fn decode(
             let value = i128::from(minimum) + i128::from(offset);
             value
                 .try_into()
-                .map_err(|_| Error::InvalidMetadata("frame-of-reference value overflow"))
+                .map_err(|_| Error("frame-of-reference value overflow"))
         })
         .collect()
 }

@@ -1,0 +1,4 @@
+[package]
+name = "litearrow-compression"
+version.workspace = true
+edition.workspace = true

@@ -365,12 +365,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "litearrow-compression"
+version = "0.1.0"
+
+[[package]]
 name = "litearrow-core"
 version = "0.1.0"
 dependencies = [
  "arrow-array",
  "arrow-ipc",
  "arrow-schema",
+ "litearrow-compression",
 ]
 
 [[package]]

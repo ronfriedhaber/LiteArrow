@@ -15,7 +15,7 @@ pub(super) fn encode(values: &[i64]) -> Candidate {
 
 pub(super) fn decode(bytes: &[u8], value_count: usize) -> Result<Vec<i64>> {
     if bytes.len() != value_count.saturating_mul(8) {
-        return Err(Error::InvalidMetadata("invalid raw value length"));
+        return Err(Error("invalid raw value length"));
     }
     Ok(bytes
         .chunks_exact(8)

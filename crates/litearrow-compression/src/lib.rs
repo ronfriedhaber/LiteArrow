@@ -1,14 +1,14 @@
-//! Small, typed compression algorithms and their size-based selector.
+//! Integer compression used by LiteArrow codecs.
 
 mod delta_bitpacked;
 mod delta_of_delta;
 mod frame_of_reference;
 mod raw;
 
-use crate::Result;
+use std::fmt;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Encoding {
+pub enum Encoding {
     Raw,
     FrameOfReferenceBitPacked {
         minimum: i64,
@@ -25,6 +25,19 @@ pub(crate) enum Encoding {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Error(pub &'static str);
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.0)
+    }
+}
+
+impl std::error::Error for Error {}
+
 struct Candidate {
     encoding: Encoding,
     bytes: Vec<u8>,
@@ -32,7 +45,7 @@ struct Candidate {
 
 /// Tries every version-zero algorithm and keeps the smallest result. Candidate
 /// order breaks equal-size ties in favor of the simpler decoder.
-pub(crate) fn encode(values: &[i64]) -> Result<(Encoding, Vec<u8>)> {
+pub fn encode(values: &[i64]) -> Result<(Encoding, Vec<u8>)> {
     let mut candidates = vec![raw::encode(values)];
     candidates.push(frame_of_reference::encode(values));
     if let Some(delta) = delta_bitpacked::encode(values) {
@@ -48,7 +61,7 @@ pub(crate) fn encode(values: &[i64]) -> Result<(Encoding, Vec<u8>)> {
     Ok((best.encoding, best.bytes))
 }
 
-pub(crate) fn decode(encoding: Encoding, bytes: &[u8], value_count: usize) -> Result<Vec<i64>> {
+pub fn decode(encoding: Encoding, bytes: &[u8], value_count: usize) -> Result<Vec<i64>> {
     match encoding {
         Encoding::Raw => raw::decode(bytes, value_count),
         Encoding::FrameOfReferenceBitPacked { minimum, bit_width } => {
@@ -110,7 +123,7 @@ fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> Vec<u64> {
         .collect()
 }
 
-pub(crate) fn packed_length(value_count: usize, bit_width: u8) -> usize {
+fn packed_length(value_count: usize, bit_width: u8) -> usize {
     value_count
         .saturating_mul(usize::from(bit_width))
         .div_ceil(8)
