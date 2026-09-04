@@ -5,6 +5,7 @@ use arrow_schema::SchemaRef;
 
 use litearrow_core::format::{self, Block, Chunk, HEADER, Metadata};
 use litearrow_core::{Error, Result, codec};
+use rayon::prelude::*;
 
 pub struct FileWriter<W> {
     output: W,
@@ -31,11 +32,11 @@ impl<W: Write> FileWriter<W> {
         if batch.num_rows() == 0 {
             return Ok(());
         }
-        let columns = self
+        let encoded = self
             .schema
             .fields()
-            .iter()
-            .zip(batch.columns())
+            .par_iter()
+            .zip(batch.columns().par_iter())
             .map(|(field, array)| {
                 let candidates = codec::specialized()
                     .into_iter()
@@ -57,21 +58,24 @@ impl<W: Write> FileWriter<W> {
                             .ok_or(Error::InvalidMetadata("fallback rejected column"))
                             .map(|bytes| (fallback, bytes))
                     })?;
+                Ok((codec.id(), bytes))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        let columns = encoded
+            .into_iter()
+            .map(|(codec, bytes)| {
                 self.output.write_all(&bytes)?;
-                let chunk = Chunk {
-                    codec: codec.id(),
+                let column = Chunk {
+                    codec,
                     offset: self.offset,
                     length: bytes.len() as u64,
                 };
                 self.offset += bytes.len() as u64;
-                Ok(chunk)
+                Ok(column)
             })
             .collect::<Result<Vec<_>>>()?;
         self.blocks.push(Block {
-            rows: batch
-                .num_rows()
-                .try_into()
-                .map_err(|_| Error::IntegerOverflow)?,
+            rows: batch.num_rows().try_into()?,
             columns,
         });
         Ok(())
@@ -80,12 +84,7 @@ impl<W: Write> FileWriter<W> {
     pub fn finish(mut self) -> Result<W> {
         let footer = format::encode(&Metadata {
             schema: codec::encode_schema(&self.schema)?,
-            field_count: self
-                .schema
-                .fields()
-                .len()
-                .try_into()
-                .map_err(|_| Error::IntegerOverflow)?,
+            field_count: self.schema.fields().len().try_into()?,
             blocks: self.blocks,
         })?;
         self.output.write_all(&footer)?;

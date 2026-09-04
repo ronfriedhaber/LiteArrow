@@ -49,19 +49,16 @@ pub(super) fn decode(
     values.push(value);
     let mut delta = first_delta;
     let mut value = value;
-    let tail = unpack(bytes, count - 2, bit_width)
-        .into_iter()
-        .map(|encoded| {
-            delta = delta
-                .checked_add(unzigzag(encoded))
-                .ok_or(Error("delta-of-delta overflow"))?;
-            value = value
-                .checked_add(delta)
-                .ok_or(Error("delta-of-delta value overflow"))?;
-            Ok(value)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    values.extend(tail);
+    unpack(bytes, count - 2, bit_width).try_for_each(|encoded| {
+        delta = delta
+            .checked_add(unzigzag(encoded))
+            .ok_or(Error("delta-of-delta overflow"))?;
+        value = value
+            .checked_add(delta)
+            .ok_or(Error("delta-of-delta value overflow"))?;
+        values.push(value);
+        Ok(())
+    })?;
     Ok(values)
 }
 

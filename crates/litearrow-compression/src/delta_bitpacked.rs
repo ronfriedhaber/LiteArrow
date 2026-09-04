@@ -33,15 +33,16 @@ pub(super) fn decode(
     if value_count == 0 {
         return Ok(Vec::new());
     }
-    let mut previous = first_value;
-    let tail = unpack(bytes, value_count - 1, bit_width)
-        .into_iter()
-        .map(|encoded| {
-            previous = previous
-                .checked_add(unzigzag(encoded))
-                .ok_or(Error("delta value overflow"))?;
-            Ok(previous)
-        })
-        .collect::<Result<Vec<_>>>()?;
-    Ok(std::iter::once(first_value).chain(tail).collect())
+    let mut values = Vec::with_capacity(value_count);
+    values.push(first_value);
+    unpack(bytes, value_count - 1, bit_width).try_for_each(|encoded| {
+        let value = values
+            .last()
+            .unwrap()
+            .checked_add(unzigzag(encoded))
+            .ok_or(Error("delta value overflow"))?;
+        values.push(value);
+        Ok(())
+    })?;
+    Ok(values)
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use arrow_array::{Array, ArrayRef, Int64Array};
+use arrow_buffer::{BooleanBuffer, Buffer, NullBuffer};
 use arrow_schema::{DataType, Field};
 
 use crate::codec::ColumnCodec;
@@ -65,19 +66,17 @@ impl ColumnCodec for Int64 {
             None
         };
         let values = compression::decode(encoding, &bytes[at..], length)?;
-        let array = match validity {
-            0 => Int64Array::from(values),
-            1 => Int64Array::from(vec![None::<i64>; length]),
-            2 => Int64Array::from(
-                values
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, value)| (bitmap.unwrap()[i / 8] & 1 << (i % 8) != 0).then_some(value))
-                    .collect::<Vec<_>>(),
-            ),
+        let nulls = match validity {
+            0 => None,
+            1 => Some(NullBuffer::new_null(length)),
+            2 => Some(NullBuffer::new(BooleanBuffer::new(
+                Buffer::from(bitmap.unwrap().to_vec()),
+                0,
+                length,
+            ))),
             _ => return Err(Error::InvalidMetadata("invalid validity encoding")),
         };
-        Ok(Arc::new(array))
+        Ok(Arc::new(Int64Array::new(values.into(), nulls)))
     }
 }
 

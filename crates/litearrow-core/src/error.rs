@@ -39,3 +39,9 @@ impl From<litearrow_compression::Error> for Error {
         Self::InvalidMetadata(error.0)
     }
 }
+
+impl From<std::num::TryFromIntError> for Error {
+    fn from(_: std::num::TryFromIntError) -> Self {
+        Self::IntegerOverflow
+    }
+}

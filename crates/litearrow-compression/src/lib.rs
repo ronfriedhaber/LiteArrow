@@ -46,18 +46,16 @@ struct Candidate {
 /// Tries every version-zero algorithm and keeps the smallest result. Candidate
 /// order breaks equal-size ties in favor of the simpler decoder.
 pub fn encode(values: &[i64]) -> Result<(Encoding, Vec<u8>)> {
-    let mut candidates = vec![raw::encode(values)];
-    candidates.push(frame_of_reference::encode(values));
-    if let Some(delta) = delta_bitpacked::encode(values) {
-        candidates.push(delta);
-    }
-    if let Some(delta_of_delta) = delta_of_delta::encode(values) {
-        candidates.push(delta_of_delta);
-    }
-    let best = candidates
-        .into_iter()
-        .min_by_key(|candidate| candidate.bytes.len())
-        .expect("raw encoding always supplies one candidate");
+    let best = [
+        Some(raw::encode(values)),
+        Some(frame_of_reference::encode(values)),
+        delta_bitpacked::encode(values),
+        delta_of_delta::encode(values),
+    ]
+    .into_iter()
+    .flatten()
+    .min_by_key(|candidate| candidate.bytes.len())
+    .expect("raw encoding always supplies one candidate");
     Ok((best.encoding, best.bytes))
 }
 
@@ -99,7 +97,7 @@ fn pack(values: &[u64], bit_width: u8) -> Vec<u8> {
     output
 }
 
-fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> Vec<u64> {
+fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> impl ExactSizeIterator<Item = u64> {
     let mut input = bytes.iter().copied();
     let mut pending = 0_u128;
     let mut pending_bits = 0_u8;
@@ -108,19 +106,17 @@ fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> Vec<u64> {
         64 => u64::MAX,
         width => (1_u64 << width) - 1,
     };
-    (0..value_count)
-        .map(|_| {
-            let needed_bytes = bit_width.saturating_sub(pending_bits).div_ceil(8);
-            (0..needed_bytes).for_each(|_| {
-                pending |= u128::from(input.next().unwrap_or(0)) << pending_bits;
-                pending_bits += 8;
-            });
-            let value = (pending as u64) & mask;
-            pending >>= bit_width;
-            pending_bits -= bit_width;
-            value
-        })
-        .collect()
+    (0..value_count).map(move |_| {
+        let needed_bytes = bit_width.saturating_sub(pending_bits).div_ceil(8);
+        (0..needed_bytes).for_each(|_| {
+            pending |= u128::from(input.next().unwrap_or(0)) << pending_bits;
+            pending_bits += 8;
+        });
+        let value = (pending as u64) & mask;
+        pending >>= bit_width;
+        pending_bits -= bit_width;
+        value
+    })
 }
 
 fn packed_length(value_count: usize, bit_width: u8) -> usize {
@@ -154,7 +150,10 @@ mod tests {
                 width => (1_u64 << width) - 1,
             };
             let values = [0, maximum / 3, maximum];
-            assert_eq!(unpack(&pack(&values, width), values.len(), width), values);
+            assert_eq!(
+                unpack(&pack(&values, width), values.len(), width).collect::<Vec<_>>(),
+                values
+            );
         });
     }
 

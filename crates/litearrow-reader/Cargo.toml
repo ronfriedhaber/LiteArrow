@@ -7,3 +7,4 @@ edition.workspace = true
 arrow-array.workspace = true
 arrow-schema.workspace = true
 litearrow-core = { path = "../litearrow-core" }
+rayon.workspace = true

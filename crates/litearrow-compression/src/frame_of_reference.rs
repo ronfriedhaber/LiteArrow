@@ -22,7 +22,6 @@ pub(super) fn decode(
     bit_width: u8,
 ) -> Result<Vec<i64>> {
     unpack(bytes, value_count, bit_width)
-        .into_iter()
         .map(|offset| {
             let value = i128::from(minimum) + i128::from(offset);
             value

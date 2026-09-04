@@ -5,6 +5,7 @@ use arrow_schema::SchemaRef;
 
 use litearrow_core::format::{self, HEADER, Metadata, TRAILER_LENGTH};
 use litearrow_core::{Error, Result, codec, crc32c};
+use rayon::prelude::*;
 
 pub struct FileReader<R> {
     input: R,
@@ -35,12 +36,7 @@ impl<R: Read + Seek> FileReader<R> {
         }
         let footer_offset = file_length - TRAILER_LENGTH - footer_length;
         input.seek(SeekFrom::Start(footer_offset))?;
-        let mut footer = vec![
-            0;
-            footer_length
-                .try_into()
-                .map_err(|_| Error::IntegerOverflow)?
-        ];
+        let mut footer = vec![0; footer_length.try_into()?];
         input.read_exact(&mut footer)?;
         if crc32c(&footer) != checksum {
             return Err(Error::ChecksumMismatch {
@@ -73,24 +69,25 @@ impl<R: Read + Seek> FileReader<R> {
             .get(index)
             .cloned()
             .ok_or(Error::InvalidMetadata("batch index is out of bounds"))?;
+        let chunks = block
+            .columns
+            .into_iter()
+            .map(|chunk| {
+                self.input.seek(SeekFrom::Start(chunk.offset))?;
+                let mut bytes = vec![0; chunk.length.try_into()?];
+                self.input.read_exact(&mut bytes)?;
+                Ok((chunk.codec, bytes))
+            })
+            .collect::<Result<Vec<_>>>()?;
         let arrays = self
             .schema
             .fields()
-            .iter()
-            .zip(block.columns)
-            .map(|(field, chunk)| {
-                let codec = codec::get(chunk.codec)
-                    .ok_or(Error::InvalidMetadata("unknown column codec"))?;
-                self.input.seek(SeekFrom::Start(chunk.offset))?;
-                let mut bytes = vec![
-                    0;
-                    chunk
-                        .length
-                        .try_into()
-                        .map_err(|_| Error::IntegerOverflow)?
-                ];
-                self.input.read_exact(&mut bytes)?;
-                codec.decode(field, block.rows as usize, &bytes)
+            .par_iter()
+            .zip(chunks.into_par_iter())
+            .map(|(field, (id, bytes))| {
+                codec::get(id)
+                    .ok_or(Error::InvalidMetadata("unknown column codec"))?
+                    .decode(field, block.rows as usize, &bytes)
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(RecordBatch::try_new(self.schema.clone(), arrays)?)
