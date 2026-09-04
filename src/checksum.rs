@@ -7,15 +7,12 @@
 pub fn crc32c(bytes: &[u8]) -> u32 {
     const REVERSED_CASTAGNOLI_POLYNOMIAL: u32 = 0x82f6_3b78;
 
-    let mut crc = !0_u32;
-    for &byte in bytes {
-        crc ^= u32::from(byte);
-        for _ in 0..8 {
+    !bytes.iter().fold(!0_u32, |crc, &byte| {
+        (0..8).fold(crc ^ u32::from(byte), |crc, _| {
             let low_bit_mask = 0_u32.wrapping_sub(crc & 1);
-            crc = (crc >> 1) ^ (REVERSED_CASTAGNOLI_POLYNOMIAL & low_bit_mask);
-        }
-    }
-    !crc
+            (crc >> 1) ^ (REVERSED_CASTAGNOLI_POLYNOMIAL & low_bit_mask)
+        })
+    })
 }
 
 #[cfg(test)]

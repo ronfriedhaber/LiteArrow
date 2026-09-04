@@ -30,15 +30,16 @@ fn multiple_nullable_arrow_batches_round_trip() {
     ];
 
     let mut writer = FileWriter::try_new(Cursor::new(Vec::new()), schema).unwrap();
-    for batch in &batches {
-        writer.write_batch(batch).unwrap();
-    }
+    batches
+        .iter()
+        .try_for_each(|batch| writer.write_batch(batch))
+        .unwrap();
     let mut reader = FileReader::try_new(writer.finish().unwrap()).unwrap();
 
     assert_eq!(reader.num_batches(), batches.len());
-    for (index, expected) in batches.iter().enumerate() {
+    batches.iter().enumerate().for_each(|(index, expected)| {
         assert_eq!(&reader.read_batch(index).unwrap(), expected);
-    }
+    });
 }
 
 #[test]

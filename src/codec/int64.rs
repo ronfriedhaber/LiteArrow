@@ -35,11 +35,11 @@ impl ColumnCodec for Int64 {
             _ => {
                 out.push(2);
                 let mut bitmap = vec![0; array.len().div_ceil(8)];
-                for i in 0..array.len() {
-                    if array.is_valid(i) {
-                        bitmap[i / 8] |= 1 << (i % 8)
-                    }
-                }
+                (0..array.len())
+                    .filter(|&i| array.is_valid(i))
+                    .for_each(|i| {
+                        bitmap[i / 8] |= 1 << (i % 8);
+                    });
                 out.extend(bitmap);
             }
         }

@@ -7,12 +7,16 @@ pub(super) fn encode(values: &[i64]) -> Option<Candidate> {
     let first_delta = difference(*values.get(1).unwrap_or(&first_value), first_value)?;
     let mut previous_value = *values.get(1).unwrap_or(&first_value);
     let mut previous_delta = first_delta;
-    let mut deltas = Vec::with_capacity(values.len().saturating_sub(2));
-    for &value in values.iter().skip(2) {
-        let delta = difference(value, previous_value)?;
-        deltas.push(zigzag(difference(delta, previous_delta)?));
-        (previous_value, previous_delta) = (value, delta);
-    }
+    let deltas = values
+        .iter()
+        .skip(2)
+        .map(|&value| {
+            let delta = difference(value, previous_value)?;
+            let encoded = zigzag(difference(delta, previous_delta)?);
+            (previous_value, previous_delta) = (value, delta);
+            Some(encoded)
+        })
+        .collect::<Option<Vec<_>>>()?;
     let bit_width = required_bits(deltas.iter().copied().max().unwrap_or(0));
     Some(Candidate {
         encoding: Encoding::DeltaOfDelta {
@@ -39,20 +43,25 @@ pub(super) fn decode(
     if count == 1 {
         return Ok(values);
     }
-    let mut delta = first_delta;
-    let mut value = first_value
-        .checked_add(delta)
+    let value = first_value
+        .checked_add(first_delta)
         .ok_or(Error::InvalidMetadata("delta-of-delta value overflow"))?;
     values.push(value);
-    for encoded in unpack(bytes, count - 2, bit_width) {
-        delta = delta
-            .checked_add(unzigzag(encoded))
-            .ok_or(Error::InvalidMetadata("delta-of-delta overflow"))?;
-        value = value
-            .checked_add(delta)
-            .ok_or(Error::InvalidMetadata("delta-of-delta value overflow"))?;
-        values.push(value);
-    }
+    let mut delta = first_delta;
+    let mut value = value;
+    let tail = unpack(bytes, count - 2, bit_width)
+        .into_iter()
+        .map(|encoded| {
+            delta = delta
+                .checked_add(unzigzag(encoded))
+                .ok_or(Error::InvalidMetadata("delta-of-delta overflow"))?;
+            value = value
+                .checked_add(delta)
+                .ok_or(Error::InvalidMetadata("delta-of-delta value overflow"))?;
+            Ok(value)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    values.extend(tail);
     Ok(values)
 }
 

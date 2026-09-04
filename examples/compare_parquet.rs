@@ -16,29 +16,28 @@ fn random(state: &mut u64) -> u64 {
 }
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut rng = 42_u64;
-    let mut time = Vec::with_capacity(ROWS);
-    let mut customer = Vec::with_capacity(ROWS);
-    let mut product = Vec::with_capacity(ROWS);
-    let mut country = Vec::with_capacity(ROWS);
-    let mut quantity = Vec::with_capacity(ROWS);
-    let mut price_cents = Vec::with_capacity(ROWS);
-    for row in 0..ROWS {
-        let customer_id = (random(&mut rng) % 20_000) as i64;
-        let product_id = (random(&mut rng) % 800) as i64;
-        time.push(1_735_689_600_000_i64 + row as i64 * 1_000);
-        customer.push(customer_id);
-        product.push(product_id);
-        country.push(customer_id % 32);
-        quantity.push(1 + (random(&mut rng) % 5) as i64);
-        price_cents.push(199 + product_id * 17 + (random(&mut rng) % 20) as i64);
-    }
+    let rows: Vec<_> = (0..ROWS)
+        .map(|row| {
+            let customer_id = (random(&mut rng) % 20_000) as i64;
+            let product_id = (random(&mut rng) % 800) as i64;
+            [
+                1_735_689_600_000_i64 + row as i64 * 1_000,
+                customer_id,
+                product_id,
+                customer_id % 32,
+                1 + (random(&mut rng) % 5) as i64,
+                199 + product_id * 17 + (random(&mut rng) % 20) as i64,
+            ]
+        })
+        .collect();
+    let column = |index| rows.iter().map(|row| row[index]).collect::<Vec<_>>();
     let batch = record_batch!(
-        ("event_time", Int64, time),
-        ("customer_id", Int64, customer),
-        ("product_id", Int64, product),
-        ("country", Int64, country),
-        ("quantity", Int64, quantity),
-        ("price_cents", Int64, price_cents)
+        ("event_time", Int64, column(0)),
+        ("customer_id", Int64, column(1)),
+        ("product_id", Int64, column(2)),
+        ("country", Int64, column(3)),
+        ("quantity", Int64, column(4)),
+        ("price_cents", Int64, column(5))
     )?;
 
     let mut lite = FileWriter::try_new(Cursor::new(Vec::new()), batch.schema())?;

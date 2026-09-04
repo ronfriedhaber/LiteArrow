@@ -87,10 +87,7 @@ fn repeat<T>(
     mut operation: impl FnMut() -> AnyResult<T>,
 ) -> AnyResult<(T, Duration)> {
     let start = Instant::now();
-    let mut result = operation()?;
-    for _ in 1..count {
-        result = operation()?;
-    }
+    let result = (1..count).try_fold(operation()?, |_, _| operation())?;
     Ok((result, start.elapsed()))
 }
 
@@ -119,24 +116,27 @@ fn random(state: &mut u64) -> u64 {
 
 fn synthetic_events(rows: usize) -> AnyResult<RecordBatch> {
     let mut rng = 42;
-    let (mut time, mut customer, mut product, mut country, mut quantity, mut price) =
-        (vec![], vec![], vec![], vec![], vec![], vec![]);
-    for row in 0..rows {
-        let customer_id = (random(&mut rng) % 20_000) as i64;
-        let product_id = (random(&mut rng) % 800) as i64;
-        time.push(1_735_689_600_000 + row as i64 * 1_000);
-        customer.push(customer_id);
-        product.push(product_id);
-        country.push(customer_id % 32);
-        quantity.push(1 + (random(&mut rng) % 5) as i64);
-        price.push(199 + product_id * 17 + (random(&mut rng) % 20) as i64);
-    }
+    let events: Vec<_> = (0..rows)
+        .map(|row| {
+            let customer_id = (random(&mut rng) % 20_000) as i64;
+            let product_id = (random(&mut rng) % 800) as i64;
+            [
+                1_735_689_600_000 + row as i64 * 1_000,
+                customer_id,
+                product_id,
+                customer_id % 32,
+                1 + (random(&mut rng) % 5) as i64,
+                199 + product_id * 17 + (random(&mut rng) % 20) as i64,
+            ]
+        })
+        .collect();
+    let column = |index| events.iter().map(|event| event[index]).collect::<Vec<_>>();
     Ok(record_batch!(
-        ("event_time", Int64, time),
-        ("customer_id", Int64, customer),
-        ("product_id", Int64, product),
-        ("country", Int64, country),
-        ("quantity", Int64, quantity),
-        ("price_cents", Int64, price)
+        ("event_time", Int64, column(0)),
+        ("customer_id", Int64, column(1)),
+        ("product_id", Int64, column(2)),
+        ("country", Int64, column(3)),
+        ("quantity", Int64, column(4)),
+        ("price_cents", Int64, column(5))
     )?)
 }

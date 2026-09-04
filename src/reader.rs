@@ -74,21 +74,26 @@ impl<R: Read + Seek> FileReader<R> {
             .get(index)
             .cloned()
             .ok_or(Error::InvalidMetadata("batch index is out of bounds"))?;
-        let mut arrays = Vec::new();
-        for (field, chunk) in self.schema.fields().iter().zip(block.columns) {
-            let codec =
-                codec::get(chunk.codec).ok_or(Error::InvalidMetadata("unknown column codec"))?;
-            self.input.seek(SeekFrom::Start(chunk.offset))?;
-            let mut bytes = vec![
-                0;
-                chunk
-                    .length
-                    .try_into()
-                    .map_err(|_| Error::IntegerOverflow)?
-            ];
-            self.input.read_exact(&mut bytes)?;
-            arrays.push(codec.decode(field, block.rows as usize, &bytes)?);
-        }
+        let arrays = self
+            .schema
+            .fields()
+            .iter()
+            .zip(block.columns)
+            .map(|(field, chunk)| {
+                let codec = codec::get(chunk.codec)
+                    .ok_or(Error::InvalidMetadata("unknown column codec"))?;
+                self.input.seek(SeekFrom::Start(chunk.offset))?;
+                let mut bytes = vec![
+                    0;
+                    chunk
+                        .length
+                        .try_into()
+                        .map_err(|_| Error::IntegerOverflow)?
+                ];
+                self.input.read_exact(&mut bytes)?;
+                codec.decode(field, block.rows as usize, &bytes)
+            })
+            .collect::<Result<Vec<_>>>()?;
         Ok(RecordBatch::try_new(self.schema.clone(), arrays)?)
     }
 }

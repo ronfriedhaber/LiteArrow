@@ -32,35 +32,42 @@ impl<W: Write> FileWriter<W> {
         if batch.num_rows() == 0 {
             return Ok(());
         }
-        let mut columns = Vec::new();
-        for (field, array) in self.schema.fields().iter().zip(batch.columns()) {
-            let candidates = codec::specialized()
-                .into_iter()
-                .filter_map(|codec| {
-                    codec
-                        .encode(field, array.as_ref())
-                        .transpose()
-                        .map(|result| result.map(|bytes| (codec, bytes)))
-                })
-                .collect::<Result<Vec<_>>>()?;
-            let (codec, bytes) =
-                if let Some(best) = candidates.into_iter().min_by_key(|(_, bytes)| bytes.len()) {
-                    best
-                } else {
-                    let fallback = codec::fallback();
-                    let bytes = fallback
-                        .encode(field, array.as_ref())?
-                        .ok_or(Error::InvalidMetadata("fallback rejected column"))?;
-                    (fallback, bytes)
+        let columns = self
+            .schema
+            .fields()
+            .iter()
+            .zip(batch.columns())
+            .map(|(field, array)| {
+                let candidates = codec::specialized()
+                    .into_iter()
+                    .filter_map(|codec| {
+                        codec
+                            .encode(field, array.as_ref())
+                            .transpose()
+                            .map(|result| result.map(|bytes| (codec, bytes)))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let (codec, bytes) = candidates
+                    .into_iter()
+                    .min_by_key(|(_, bytes)| bytes.len())
+                    .map(Ok)
+                    .unwrap_or_else(|| {
+                        let fallback = codec::fallback();
+                        fallback
+                            .encode(field, array.as_ref())?
+                            .ok_or(Error::InvalidMetadata("fallback rejected column"))
+                            .map(|bytes| (fallback, bytes))
+                    })?;
+                self.output.write_all(&bytes)?;
+                let chunk = Chunk {
+                    codec: codec.id(),
+                    offset: self.offset,
+                    length: bytes.len() as u64,
                 };
-            self.output.write_all(&bytes)?;
-            columns.push(Chunk {
-                codec: codec.id(),
-                offset: self.offset,
-                length: bytes.len() as u64,
-            });
-            self.offset += bytes.len() as u64;
-        }
+                self.offset += bytes.len() as u64;
+                Ok(chunk)
+            })
+            .collect::<Result<Vec<_>>>()?;
         self.blocks.push(Block {
             rows: batch
                 .num_rows()

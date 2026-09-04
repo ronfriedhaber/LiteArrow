@@ -33,14 +33,14 @@ pub(crate) fn encode(metadata: &Metadata) -> Result<Vec<u8>> {
     out.extend(&metadata.schema);
     u32(&mut out, metadata.field_count);
     u32(&mut out, length(metadata.blocks.len())?);
-    for block in &metadata.blocks {
+    metadata.blocks.iter().for_each(|block| {
         u32(&mut out, block.rows);
-        for column in &block.columns {
+        block.columns.iter().for_each(|column| {
             out.push(column.codec);
             u64(&mut out, column.offset);
             u64(&mut out, column.length);
-        }
-    }
+        });
+    });
     Ok(out)
 }
 
@@ -51,19 +51,21 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<Metadata> {
     input.read_exact(&mut schema)?;
     let field_count = read_u32(&mut input)?;
     let block_count = read_u32(&mut input)?;
-    let mut blocks = Vec::with_capacity(block_count as usize);
-    for _ in 0..block_count {
-        let rows = read_u32(&mut input)?;
-        let mut columns = Vec::with_capacity(field_count as usize);
-        for _ in 0..field_count {
-            columns.push(Chunk {
-                codec: read::<1>(&mut input)?[0],
-                offset: read_u64(&mut input)?,
-                length: read_u64(&mut input)?,
-            });
-        }
-        blocks.push(Block { rows, columns });
-    }
+    let blocks = (0..block_count)
+        .map(|_| {
+            let rows = read_u32(&mut input)?;
+            let columns = (0..field_count)
+                .map(|_| {
+                    Ok(Chunk {
+                        codec: read::<1>(&mut input)?[0],
+                        offset: read_u64(&mut input)?,
+                        length: read_u64(&mut input)?,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            Ok(Block { rows, columns })
+        })
+        .collect::<Result<Vec<_>>>()?;
     if input.position() != bytes.len() as u64 {
         return Err(Error::InvalidMetadata("trailing footer bytes"));
     }

@@ -71,15 +71,15 @@ fn pack(values: &[u64], bit_width: u8) -> Vec<u8> {
     let mut output = Vec::with_capacity(packed_length(values.len(), bit_width));
     let mut pending = 0_u128;
     let mut pending_bits = 0_u8;
-    for &value in values {
+    values.iter().for_each(|&value| {
         pending |= u128::from(value) << pending_bits;
         pending_bits += bit_width;
-        while pending_bits >= 8 {
+        (0..pending_bits / 8).for_each(|_| {
             output.push(pending as u8);
             pending >>= 8;
             pending_bits -= 8;
-        }
-    }
+        });
+    });
     if pending_bits != 0 {
         output.push(pending as u8);
     }
@@ -87,7 +87,6 @@ fn pack(values: &[u64], bit_width: u8) -> Vec<u8> {
 }
 
 fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> Vec<u64> {
-    let mut values = Vec::with_capacity(value_count);
     let mut input = bytes.iter().copied();
     let mut pending = 0_u128;
     let mut pending_bits = 0_u8;
@@ -96,16 +95,19 @@ fn unpack(bytes: &[u8], value_count: usize, bit_width: u8) -> Vec<u64> {
         64 => u64::MAX,
         width => (1_u64 << width) - 1,
     };
-    for _ in 0..value_count {
-        while pending_bits < bit_width {
-            pending |= u128::from(input.next().unwrap_or(0)) << pending_bits;
-            pending_bits += 8;
-        }
-        values.push((pending as u64) & mask);
-        pending >>= bit_width;
-        pending_bits -= bit_width;
-    }
-    values
+    (0..value_count)
+        .map(|_| {
+            let needed_bytes = bit_width.saturating_sub(pending_bits).div_ceil(8);
+            (0..needed_bytes).for_each(|_| {
+                pending |= u128::from(input.next().unwrap_or(0)) << pending_bits;
+                pending_bits += 8;
+            });
+            let value = (pending as u64) & mask;
+            pending >>= bit_width;
+            pending_bits -= bit_width;
+            value
+        })
+        .collect()
 }
 
 pub(crate) fn packed_length(value_count: usize, bit_width: u8) -> usize {
@@ -132,7 +134,7 @@ mod tests {
 
     #[test]
     fn bit_packing_round_trips_every_width() {
-        for width in 0..=64 {
+        (0..=64).for_each(|width| {
             let maximum = match width {
                 0 => 0,
                 64 => u64::MAX,
@@ -140,7 +142,7 @@ mod tests {
             };
             let values = [0, maximum / 3, maximum];
             assert_eq!(unpack(&pack(&values, width), values.len(), width), values);
-        }
+        });
     }
 
     #[test]
@@ -151,10 +153,10 @@ mod tests {
             vec![i64::MIN, 0, i64::MAX],
             vec![10, -10, 10, -10, 10],
         ];
-        for values in cases {
+        cases.into_iter().for_each(|values| {
             let (encoding, bytes) = encode(&values).unwrap();
             assert_eq!(decode(encoding, &bytes, values.len()).unwrap(), values);
-        }
+        });
     }
 
     #[test]
